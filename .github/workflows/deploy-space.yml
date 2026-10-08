@@ -1,22 +1,22 @@
 # Updates the Hugging Face organization card, and the full page it links to.
 #
-#   hypernix-ai/README   the org card shown on https://huggingface.co/hypernix-ai.
+#   Hyprnyx/README       the org card shown on https://huggingface.co/Hyprnyx.
 #                        Hugging Face builds the card from this Space's
 #                        README.md, so it gets README.md and assets/ only:
 #                        an index.html here would replace the card with an
 #                        unstyled copy of the page. The Space is kept public,
 #                        because a private one hides the card.
-#   hypernix-ai/Hyprnyx  the full page: everything in site/.
+#   Hyprnyx/Hyprnyx      the full page: everything in site/.
 #
 # Runs on every push to main/master, and from the Actions tab, where you can
 # choose to update only the card or only the page.
 #
 # Needs one repository secret:
 #   HF_TOKEN  a Hugging Face write token that can create and write repos in
-#             the hypernix-ai org.
+#             the Hyprnyx org on Hugging Face.
 # Optional repository variables:
-#   HF_SPACE       the card Space      (default: hypernix-ai/README)
-#   HF_SITE_SPACE  the full-page Space (default: hypernix-ai/Hyprnyx)
+#   HF_SPACE       the card Space      (default: Hyprnyx/README)
+#   HF_SITE_SPACE  the full-page Space (default: Hyprnyx/Hyprnyx)
 
 name: Deploy Space
 
@@ -44,8 +44,8 @@ jobs:
     timeout-minutes: 10
     env:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      HF_SPACE: ${{ vars.HF_SPACE || 'hypernix-ai/README' }}
-      HF_SITE_SPACE: ${{ vars.HF_SITE_SPACE || 'hypernix-ai/Hyprnyx' }}
+      HF_SPACE: ${{ vars.HF_SPACE || 'Hyprnyx/README' }}
+      HF_SITE_SPACE: ${{ vars.HF_SITE_SPACE || 'Hyprnyx/Hyprnyx' }}
       TARGET: ${{ inputs.target || 'card and page' }}
       HF_HUB_DISABLE_TELEMETRY: "1"
     steps:

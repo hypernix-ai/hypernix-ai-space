@@ -16,7 +16,7 @@ short_description: hypernix-pip — train, quantise and serve models anywhere
   <a href="https://pypi.org/project/hypernix/"><img alt="PyPI" src="https://img.shields.io/badge/pip_install-hypernix-c8192e?style=for-the-badge&logo=pypi&logoColor=white" /></a>
   <a href="https://github.com/trail-b1az3r/HyperNix-pip"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-HyperNix--pip-1a1a1a?style=for-the-badge&logo=github&logoColor=white" /></a>
   <a href="https://trail-b1az3r.github.io/HyperNix-pip/"><img alt="Docs" src="https://img.shields.io/badge/Docs-hypernix-2d2d2d?style=for-the-badge&logo=readthedocs&logoColor=white" /></a>
-  <a href="https://huggingface.co/spaces/hypernix-ai/Hyprnyx"><img alt="Full page" src="https://img.shields.io/badge/Full_page-Hyprnyx-f2f2f0?style=for-the-badge&logo=huggingface&logoColor=c8192e" /></a>
+  <a href="https://huggingface.co/spaces/Hyprnyx/Hyprnyx"><img alt="Full page" src="https://img.shields.io/badge/Full_page-Hyprnyx-f2f2f0?style=for-the-badge&logo=huggingface&logoColor=c8192e" /></a>
 </p>
 
 <p align="center">
@@ -79,6 +79,6 @@ The HyperNix family, trained with the toolkit it ships with. Published under [ra
 ---
 
 <p align="center">
-  <a href="https://huggingface.co/spaces/hypernix-ai/Hyprnyx"><b>Open the full Hyprnyx page →</b></a><br/>
+  <a href="https://huggingface.co/spaces/Hyprnyx/Hyprnyx"><b>Open the full Hyprnyx page →</b></a><br/>
   <sub>Hyprnyx · hypernix-ai · hypernix-pip is released under the HOS / LLU licence</sub>
 </p>
