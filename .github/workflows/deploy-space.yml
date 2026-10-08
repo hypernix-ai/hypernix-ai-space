@@ -70,6 +70,7 @@ jobs:
         run: |
           import os, re, shutil, sys, tempfile
           from huggingface_hub import HfApi
+          from huggingface_hub.errors import HfHubHTTPError, RepositoryNotFoundError
 
           api = HfApi(token=os.environ["HF_TOKEN"])
           target = os.environ["TARGET"]
@@ -82,16 +83,58 @@ jobs:
           managed = ["*.html", "*.md", "*.css", "*.js", "assets/**"]
           summary = []
 
+          def fail(message):
+              print(f"::error::{message}")
+              sys.exit(1)
+
+          # Say whose token this is and what it may do in the org, so a
+          # permissions failure names its own fix.
+          me = api.whoami()
+          token_role = (me.get("auth") or {}).get("accessToken", {}).get("role", "unknown")
+          org_roles = {o.get("name"): o.get("roleInOrg") for o in me.get("orgs", [])}
+          print(f"Token: user {me.get('name')}, {token_role} token, role in {org}: {org_roles.get(org, 'not a member')}")
+          if token_role == "read":
+              fail("HF_TOKEN is a read token. Create a write token (or a fine-grained one with write access to the org's repos).")
+          if org not in org_roles:
+              fail(f"HF_TOKEN belongs to {me.get('name')}, who is not a member of {org} "
+                   f"(member of: {', '.join(sorted(org_roles)) or 'no organizations'}). "
+                   f"Use a token from a {org} member, or add {me.get('name')} to {org}.")
+
+          def ensure_space(space):
+              # Creating needs more rights than writing: only create when missing.
+              try:
+                  api.repo_info(space, repo_type="space")
+                  return
+              except RepositoryNotFoundError:
+                  pass
+              try:
+                  api.create_repo(space, repo_type="space", space_sdk="static", private=False, exist_ok=True)
+                  print(f"{space}: created")
+              except HfHubHTTPError as e:
+                  if e.response is not None and e.response.status_code == 403:
+                      fail(f"{space} does not exist and this token may not create Spaces in {org} "
+                           f"(role: {org_roles.get(org)}). Either create the Space once by hand "
+                           f"(static SDK, public) at https://huggingface.co/new-space?owner={org}, "
+                           f"or use a token from a member with the write or admin role; a fine-grained "
+                           f"token also needs 'Write access to contents/settings of all repos' for {org}.")
+                  raise
+
           def deploy(space, folder, allow):
-              api.create_repo(space, repo_type="space", space_sdk="static", private=False, exist_ok=True)
-              info = api.upload_folder(
-                  repo_id=space,
-                  repo_type="space",
-                  folder_path=folder,
-                  allow_patterns=allow,
-                  delete_patterns=managed,
-                  commit_message=f"Deploy from GitHub {ref}",
-              )
+              ensure_space(space)
+              try:
+                  info = api.upload_folder(
+                      repo_id=space,
+                      repo_type="space",
+                      folder_path=folder,
+                      allow_patterns=allow,
+                      delete_patterns=managed,
+                      commit_message=f"Deploy from GitHub {ref}",
+                  )
+              except HfHubHTTPError as e:
+                  if e.response is not None and e.response.status_code == 403:
+                      fail(f"This token may not write to {space} (role in {org}: {org_roles.get(org)}). "
+                           f"It needs the write or admin role, or fine-grained write access to {org}'s repos.")
+                  raise
               print(f"{space}: {info.commit_url}")
               return info.commit_url
 
@@ -109,8 +152,12 @@ jobs:
 
               # A private or protected README Space hides the card.
               if api.repo_info(card_space, repo_type="space").private:
-                  api.update_repo_settings(card_space, repo_type="space", private=False)
-                  print(f"{card_space}: made public so the card shows")
+                  try:
+                      api.update_repo_settings(card_space, repo_type="space", private=False)
+                      print(f"{card_space}: made public so the card shows")
+                  except HfHubHTTPError:
+                      print(f"::warning::{card_space} is private, which hides the card, and this token "
+                            f"may not change that. Make it public in the Space's settings.")
 
               files = set(api.list_repo_files(card_space, repo_type="space"))
               if "README.md" not in files or any(f.endswith(".html") for f in files):
