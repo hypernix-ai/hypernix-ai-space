@@ -9,7 +9,7 @@ short_description: hypernix-pip — train, quantise and serve models anywhere
 ---
 
 <p align="center">
-  <img src="assets/banner.png" alt="Hyprnyx — train, quantise and serve models on the hardware you have" width="900" />
+  <img src="https://raw.githubusercontent.com/hypernix-ai/hypernix-ai-space/cac70c208e2f58bb02a402974abe293f502e5587/assets/banner.png" alt="Hyprnyx — train, quantise and serve models on the hardware you have" width="900" />
 </p>
 
 <p align="center">
