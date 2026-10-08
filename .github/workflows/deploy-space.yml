@@ -1,0 +1,82 @@
+# Creates the Hugging Face Space if it does not exist yet, then uploads this
+# repository to it. With the Space named README under the org, its README.md
+# is the org card on https://huggingface.co/hypernix-ai.
+#
+# Needs one repository secret:
+#   HF_TOKEN  a Hugging Face write token that can create and write repos in
+#             the hypernix-ai org (fine-grained: "Write access to contents/
+#             settings of all repos under the org" for hypernix-ai).
+# Optional repository variable:
+#   HF_SPACE  owner/name of the Space (default: hypernix-ai/README).
+
+name: Deploy Space
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      space:
+        description: "Space to deploy to (owner/name)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-space
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_SPACE: ${{ inputs.space || vars.HF_SPACE || 'hypernix-ai/README' }}
+      HF_HUB_DISABLE_TELEMETRY: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check the token is set
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "::error::Add a Hugging Face write token as the HF_TOKEN repository secret."
+            exit 1
+          fi
+
+      - name: Install huggingface_hub
+        run: pip install "huggingface_hub>=0.34,<3"
+
+      - name: Create or update the Space
+        shell: python
+        run: |
+          import os
+          from huggingface_hub import HfApi
+
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          space = os.environ["HF_SPACE"]
+
+          # exist_ok: the first run creates it, every later run just updates it.
+          url = api.create_repo(space, repo_type="space", space_sdk="static", exist_ok=True)
+          print(f"Space: {url}")
+
+          sha = os.environ.get("GITHUB_SHA", "")[:7]
+          info = api.upload_folder(
+              repo_id=space,
+              repo_type="space",
+              folder_path=".",
+              commit_message=f"Deploy from GitHub {os.environ.get('GITHUB_REPOSITORY', '')}@{sha}",
+              ignore_patterns=[".git/**", ".github/**", ".gitignore"],
+              # Remove files deleted here, but never the Space's own .gitattributes.
+              delete_patterns=["*.html", "*.md", "*.css", "*.js", "assets/**"],
+          )
+          print(f"Uploaded: {info.commit_url}")
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(f"Deployed to https://huggingface.co/spaces/{space}\n\n{info.commit_url}\n")
