@@ -64,8 +64,6 @@ The HyperNix family, trained with the toolkit it ships with. Published under [ra
 | [**HyperNix.3-mini**](https://huggingface.co/ray0rf1re/HyperNix.3-mini) | The newest; the default the T1 built-in runner serves |
 | [**hyper-Nix.2**](https://huggingface.co/ray0rf1re/hyper-Nix.2) | Second-generation HyperNix |
 | [**hyper-nix.1**](https://huggingface.co/ray0rf1re/hyper-nix.1) | Where it started: the model hypernix-pip was written to convert |
-| [**Nano-Nano v5.1**](https://huggingface.co/ray0rf1re/Nano-Nano_v5.1) | The nano series: tiny, fast, CPU-friendly |
-| [**Nano-mini 6.99 v2**](https://huggingface.co/ray0rf1re/Nano-mini-6.99-v2) | Nano's bigger sibling |
 
 ---
 
