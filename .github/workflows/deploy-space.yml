@@ -1,12 +1,15 @@
-# Creates the two Hugging Face Spaces if they do not exist yet, then uploads
-# to them:
+# Updates the Hugging Face organization card, and the full page it links to.
 #
-#   hypernix-ai/README   the org card: README.md and assets/ from the repo
-#                        root. Nothing else goes here, because the org page
-#                        renders whatever this Space holds with styles and
-#                        scripts stripped -- an index.html in it turns the
-#                        card into an unstyled copy of the page.
+#   hypernix-ai/README   the org card shown on https://huggingface.co/hypernix-ai.
+#                        Hugging Face builds the card from this Space's
+#                        README.md, so it gets README.md and assets/ only:
+#                        an index.html here would replace the card with an
+#                        unstyled copy of the page. The Space is kept public,
+#                        because a private one hides the card.
 #   hypernix-ai/Hyprnyx  the full page: everything in site/.
+#
+# Runs on every push to main/master, and from the Actions tab, where you can
+# choose to update only the card or only the page.
 #
 # Needs one repository secret:
 #   HF_TOKEN  a Hugging Face write token that can create and write repos in
@@ -21,6 +24,12 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      target:
+        description: "What to update"
+        type: choice
+        options: [card and page, card only, page only]
+        default: card and page
 
 permissions:
   contents: read
@@ -37,6 +46,7 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
       HF_SPACE: ${{ vars.HF_SPACE || 'hypernix-ai/README' }}
       HF_SITE_SPACE: ${{ vars.HF_SITE_SPACE || 'hypernix-ai/Hyprnyx' }}
+      TARGET: ${{ inputs.target || 'card and page' }}
       HF_HUB_DISABLE_TELEMETRY: "1"
     steps:
       - uses: actions/checkout@v4
@@ -53,22 +63,27 @@ jobs:
           fi
 
       - name: Install huggingface_hub
-        run: pip install "huggingface_hub>=0.34,<3"
+        run: pip install "huggingface_hub>=0.30,<3"
 
-      - name: Create or update the Spaces
+      - name: Update the organization card and page
         shell: python
         run: |
-          import os
+          import os, re, shutil, sys, tempfile
           from huggingface_hub import HfApi
 
           api = HfApi(token=os.environ["HF_TOKEN"])
+          target = os.environ["TARGET"]
+          card_space = os.environ["HF_SPACE"]
+          site_space = os.environ["HF_SITE_SPACE"]
+          org = card_space.split("/")[0]
           ref = f"{os.environ.get('GITHUB_REPOSITORY', '')}@{os.environ.get('GITHUB_SHA', '')[:7]}"
           # Remove files deleted here (and, on the card, a stray index.html),
           # but never a Space's own .gitattributes.
           managed = ["*.html", "*.md", "*.css", "*.js", "assets/**"]
+          summary = []
 
           def deploy(space, folder, allow):
-              api.create_repo(space, repo_type="space", space_sdk="static", exist_ok=True)
+              api.create_repo(space, repo_type="space", space_sdk="static", private=False, exist_ok=True)
               info = api.upload_folder(
                   repo_id=space,
                   repo_type="space",
@@ -78,11 +93,34 @@ jobs:
                   commit_message=f"Deploy from GitHub {ref}",
               )
               print(f"{space}: {info.commit_url}")
-              return f"- [{space}](https://huggingface.co/spaces/{space}) · [commit]({info.commit_url})\n"
+              return info.commit_url
 
-          lines = [
-              deploy(os.environ["HF_SPACE"], ".", ["README.md", "assets/**"]),
-              deploy(os.environ["HF_SITE_SPACE"], "site", ["*.html", "README.md", "assets/**"]),
-          ]
-          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-              summary.write("Deployed:\n\n" + "".join(lines))
+          if target in ("card and page", "card only"):
+              # The README points its banner at a pinned GitHub URL so it can
+              # also be pasted into the card editor by hand. Here the banner
+              # is uploaded beside it, so point it at that copy instead: the
+              # card then always shows the banner from this commit.
+              with tempfile.TemporaryDirectory() as tmp:
+                  shutil.copytree("assets", os.path.join(tmp, "assets"))
+                  text = open("README.md", encoding="utf-8").read()
+                  text = re.sub(r"https://raw\.githubusercontent\.com/[^\"')\s]+?/assets/", "assets/", text)
+                  open(os.path.join(tmp, "README.md"), "w", encoding="utf-8").write(text)
+                  url = deploy(card_space, tmp, ["README.md", "assets/**"])
+
+              # A private or protected README Space hides the card.
+              if api.repo_info(card_space, repo_type="space").private:
+                  api.update_repo_settings(card_space, repo_type="space", private=False)
+                  print(f"{card_space}: made public so the card shows")
+
+              files = set(api.list_repo_files(card_space, repo_type="space"))
+              if "README.md" not in files or any(f.endswith(".html") for f in files):
+                  print(f"::error::{card_space} should hold README.md and no HTML; it has: {sorted(files)}")
+                  sys.exit(1)
+              summary.append(f"- Organization card: https://huggingface.co/{org} ([commit]({url}))\n")
+
+          if target in ("card and page", "page only"):
+              url = deploy(site_space, "site", ["*.html", "README.md", "assets/**"])
+              summary.append(f"- Full page: https://huggingface.co/spaces/{site_space} ([commit]({url}))\n")
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
+              out.write("Updated:\n\n" + "".join(summary))
